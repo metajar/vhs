@@ -35,12 +35,16 @@ func (g *Git) SaveDeviceConfiguration(device devices.Device) error {
 		return err
 	}
 
+	time.Sleep(50 * time.Millisecond) // Add sleep before git add
+
 	cmd := exec.Command("git", "add", deviceFile)
 	cmd.Dir = g.RepoDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git add failed: %w, output: %s", err, output)
 	}
+
+	time.Sleep(50 * time.Millisecond) // Add sleep before git commit
 
 	cmd = exec.Command("git", "commit", "-m", fmt.Sprintf("Update configuration for device %s", device.Name))
 	cmd.Dir = g.RepoDir
@@ -54,6 +58,7 @@ func (g *Git) SaveDeviceConfiguration(device devices.Device) error {
 	}
 
 	return nil
+
 }
 
 // commit commits changes in the Git repo.
@@ -101,6 +106,16 @@ func (g *Git) Clone(repoURL string) error {
 	return nil
 }
 
+func (g *Git) SetUpstreamBranch() error {
+	cmd := exec.Command("git", "branch", "--set-upstream-to", "origin/"+g.Branch, g.Branch)
+	cmd.Dir = g.RepoDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to set upstream branch: %w, output: %s", err, output)
+	}
+	return nil
+}
+
 func (g *Git) StartPeriodicPush(ctx context.Context, duration time.Duration) {
 	ticker := time.NewTicker(duration)
 	defer ticker.Stop()
@@ -110,15 +125,27 @@ func (g *Git) StartPeriodicPush(ctx context.Context, duration time.Duration) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			// Check if there are changes to be committed
-			cmd := exec.Command("git", "diff", "--cached", "--exit-code")
+			cmd := exec.Command("git", "status")
 			cmd.Dir = g.RepoDir
-			if cmd.Run() != nil {
-				// If the git diff command exits with 1, there are changes to be committed.
-				if err := g.Push(); err != nil {
-					log.Printf("Failed to push changes: %v", err)
-				}
+			output, _ := cmd.CombinedOutput()
+			log.Printf("Git status before pushing:\n%s", output)
+
+			cmd = exec.Command("git", "log", "--oneline", "-n", "5") // Show the last 5 commits
+			cmd.Dir = g.RepoDir
+			output, _ = cmd.CombinedOutput()
+			log.Printf("Commit history before pushing:\n%s", output)
+
+			cmd = exec.Command("git", "push", "origin", g.Branch)
+			cmd.Dir = g.RepoDir
+			output, err := cmd.CombinedOutput() // Modify this line
+			if err != nil {
+				log.Printf("Failed to push changes: %v, output: %s", err, output)
+			} else {
+				log.Printf("Pushed changes successfully, output: %s", output) // Add this line
 			}
+			//if err := g.Push(); err != nil {
+			//	log.Printf("Failed to push changes: %v", err)
+			//}
 		}
 	}
 }

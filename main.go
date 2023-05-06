@@ -22,6 +22,11 @@ func main() {
 		log.Fatalf("Failed to clone repository: %v\n", err)
 	}
 
+	// Set up the upstream branch for the local branch.
+	if err := g.SetUpstreamBranch(); err != nil {
+		log.Fatalf("Failed to set upstream branch: %v\n", err)
+	}
+
 	// Pull the latest changes before starting the application.
 	if err := g.Pull(); err != nil {
 		log.Fatalf("Failed to pull changes: %v\n", err)
@@ -39,13 +44,13 @@ func main() {
 	}()
 
 	// Here you can send devices to the channel. This is just an example.
-	deviceChan <- devices.NewDevice("co01.test01", []byte("device configuration\nWow"))
+	deviceChan <- devices.NewDevice("co01.test01", []byte("device configuration\nWow\nNice\nSeriously!"))
 	//deviceChan <- devices.NewDevice("la01.test01", []byte("another device configuration\nWow"))
 
 	// Close the channel when you're done sending devices.
 	close(deviceChan)
 
-	go g.StartPeriodicPush(context.Background(), time.Minute)
+	go g.StartPeriodicPush(context.Background(), time.Second*10)
 
 	// Keep the main function from returning, since our goroutines are running in the background.
 	select {}
