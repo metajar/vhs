@@ -45,13 +45,18 @@ func main() {
 
 	// Here you can send devices to the channel. This is just an example.
 	deviceChan <- devices.NewDevice("co01.test01", []byte("device configuration\nWow\nNice\nSeriously!"))
-	//deviceChan <- devices.NewDevice("la01.test01", []byte("another device configuration\nWow"))
+	go func() {
+		t := time.NewTicker(10 * time.Second)
+		for range t.C {
+			deviceChan <- devices.NewDevice("co02.test01", []byte("device configuration\nWow\nNice\nSeriously!"))
+			deviceChan <- devices.NewDevice("la01.test01", []byte("device configuration\nWow\nNice\nSeriously!"))
+		}
+	}()
 
 	// Close the channel when you're done sending devices.
-	close(deviceChan)
+	defer close(deviceChan)
 
-	go g.StartPeriodicPush(context.Background(), time.Second*10)
-
+	go g.StartPeriodicPush(context.Background(), time.Second*10, time.Second*60)
 	// Keep the main function from returning, since our goroutines are running in the background.
 	select {}
 }
