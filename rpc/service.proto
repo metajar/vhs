@@ -1,0 +1,21 @@
+syntax = "proto3";
+package pkg.cache.server;
+option go_package = "pkg/vhs/server";
+
+service VhsService {
+  rpc Backup (BackupRequest) returns (BackupResponse) {}
+}
+
+message Device {
+  string host = 1;
+  bytes payload = 2;
+}
+message BackupRequest {
+  Device device = 1;
+}
+
+message BackupResponse {
+  bool success = 1;
+  int32 status = 2;
+}
+

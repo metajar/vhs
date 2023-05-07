@@ -117,11 +117,14 @@ func (g *Git) StartPeriodicPush(ctx context.Context, duration time.Duration, max
 			if err != nil {
 				g.log.Error("Failed to deprecate old files", zap.Error(err))
 			}
-			_, err = g.runGitCommand("push", "origin", g.Branch)
+			output, err := g.runGitCommand("push", "origin", g.Branch)
 			if err != nil {
 				g.log.Error("Failed to push changes", zap.Error(err))
 			} else {
-				g.log.Info("Pushed Changes Successfully!")
+				if strings.Contains(string(output), "Everything up-to-date") {
+					continue
+				}
+				g.log.Info("Pushed Changes Successfully!", zap.String("output", string(output)))
 			}
 		}
 	}
