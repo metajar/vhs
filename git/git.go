@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,12 +24,24 @@ type Git struct {
 
 // NewGit creates a new Git object.
 func NewGit(repoDir string, branch string) Git {
+	err := os.MkdirAll(repoDir, 0755)
+	if err != nil {
+		log.Fatalf("Failed to create git repository directory: %v", err)
+	}
+
+	_, err = os.Stat(filepath.Join(repoDir, ".git"))
+	if os.IsNotExist(err) {
+		cmd := exec.Command("git", "init")
+		cmd.Dir = repoDir
+		if err := cmd.Run(); err != nil {
+			log.Fatalf("Failed to initialize git repository: %v", err)
+		}
+	}
 	l, err := zap.NewProduction()
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-
 	return Git{
 		RepoDir: repoDir,
 		Branch:  branch,
@@ -181,7 +194,11 @@ func (g *Git) deprecateOldFiles(rootPath string, maxAge time.Duration) error {
 					if err != nil {
 						g.log.Error("Failed to add file", zap.String("file", deprecatedPath), zap.Error(err))
 					}
-					_, err = g.runGitCommand("rm", path)
+					relativePath, err := filepath.Rel(rootPath, path)
+					if err != nil {
+						return err
+					}
+					_, err = g.runGitCommand("rm", relativePath)
 					if err != nil {
 						g.log.Error("Failed to remove deprecated file", zap.String("file", path), zap.Error(err))
 					}
